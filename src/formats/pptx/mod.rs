@@ -567,13 +567,27 @@ fn parse_graphic_frame(
         parse_table(tbl, ctx, blocks)?;
         return Ok(());
     }
-    // Embedded OLE objects: retain identity, media type, and payload.
+    // Embedded OLE objects: retain identity, media type, and payload. MathType
+    // equations (progId `Equation.DSMT4`) are decoded to display math.
     if let Some(ole) = frame.first_descendant(ns::P, "oleObj") {
         let prog_id = ole.attr(ns::P, "progId").unwrap_or("object");
         let name = ole.attr(ns::P, "name").unwrap_or("").trim();
+        let is_math = prog_id.contains("Equation.") || prog_id.contains("DSMT");
+        let rid = ole.attr_qualified(ns::R, "id");
+        if is_math {
+            if let Some(rid) = rid
+                && let Some((_part, bytes)) = ctx.rel_part(rid)?
+                && let Some(tex) = crate::shared::math::ole_mtef_to_tex(&bytes)
+            {
+                blocks.push(Block::Math(tex));
+                return Ok(());
+            }
+            // MTEF decode failed: fall through to the placeholder so the
+            // document still produces useful content.
+        }
         let alt =
             if name.is_empty() { format!("Embedded object: {prog_id}") } else { name.to_string() };
-        let source = match ole.attr_qualified(ns::R, "id") {
+        let source = match rid {
             Some(rid) => match ctx.rel_part(rid)? {
                 Some((part, bytes)) => Some(ImageSource::Asset(ctx.assets.borrow_mut().add(
                     "application/vnd.ms-ole-object".into(),
