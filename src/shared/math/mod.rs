@@ -2,10 +2,12 @@
 //! and [`Block::Math`](crate::model::Block::Math) carry.
 
 mod mathml;
+mod mtef;
 mod omml;
 mod tex;
 
 pub use mathml::{mathml_is_display, mathml_to_tex};
+pub use mtef::ole_mtef_to_tex;
 pub use omml::{omath_para_to_tex, omath_to_tex};
 
 use crate::model::Inline;
