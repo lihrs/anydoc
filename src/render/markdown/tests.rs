@@ -1,7 +1,7 @@
 use super::document_to_markdown;
 use crate::model::{
-    AnchorId, Block, Cell, Document, GridBuilder, ImageSource, Inline, LinkTarget, List, ListItem,
-    MarkerKind, Note, NoteKind, Style, Table, TableKind,
+    AnchorId, Asset, AssetId, Block, Cell, Document, GridBuilder, ImageSource, Inline, LinkTarget,
+    List, ListItem, MarkerKind, Note, NoteKind, Style, Table, TableKind,
 };
 
 fn doc(blocks: Vec<Block>) -> String {
@@ -293,6 +293,56 @@ fn sourceless_image_renders_alt_text() {
         source: ImageSource::Unavailable,
     }])]);
     assert_eq!(md, "chart\n");
+}
+
+/// Render a document with the given assets and a single paragraph of inlines.
+fn doc_with_assets(assets: Vec<Asset>, inlines: Vec<Inline>) -> String {
+    document_to_markdown(&Document { blocks: vec![Block::Paragraph(inlines)], notes: Vec::new(), assets })
+}
+
+#[test]
+fn embedded_image_renders_as_base64_data_uri() {
+    // A tiny 1x1 PNG is enough to exercise the encoder: the alt must never
+    // leak, and the destination must be a base64 data URI.
+    let png: &[u8] = &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00];
+    let md = doc_with_assets(
+        vec![Asset {
+            id: AssetId(0),
+            media_type: "image/png".into(),
+            origin_part: "media/image1.png".into(),
+            bytes: png.to_vec(),
+        }],
+        vec![Inline::Image { alt: "dot".into(), source: ImageSource::Asset(AssetId(0)) }],
+    );
+    let base64 = crate::shared::base64::encode(png);
+    assert_eq!(md, format!("![dot](data:image/png;base64,{base64})\n"), "embedded image must render as data URI");
+    assert!(!md.contains("media/image1.png"), "image part path must not leak into output: {md}");
+}
+
+#[test]
+fn embedded_non_image_asset_degrades_to_alt_text() {
+    // OLE objects share `ImageSource::Asset` but are not images: they must
+    // render as their alt text, not as a `data:application/...` blob.
+    let md = doc_with_assets(
+        vec![Asset {
+            id: AssetId(0),
+            media_type: "application/vnd.ms-ole-object".into(),
+            origin_part: "embeddings/oleObject1.bin".into(),
+            bytes: vec![0, 1, 2, 3],
+        }],
+        vec![Inline::Image { alt: "Embedded object: Excel.Sheet.12".into(), source: ImageSource::Asset(AssetId(0)) }],
+    );
+    assert_eq!(md, "Embedded object: Excel.Sheet.12\n");
+    assert!(!md.contains("data:application"), "non-image assets must not become data URIs: {md}");
+}
+
+#[test]
+fn missing_asset_id_degrades_to_alt_text() {
+    let md = doc(vec![Block::Paragraph(vec![Inline::Image {
+        alt: "gone".into(),
+        source: ImageSource::Asset(AssetId(99)),
+    }])]);
+    assert_eq!(md, "gone\n");
 }
 
 #[test]
