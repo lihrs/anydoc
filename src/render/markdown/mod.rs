@@ -8,7 +8,7 @@ mod table;
 #[cfg(test)]
 mod tests;
 
-use crate::model::{Block, Document, Inline, List, MarkerKind, Note, TableKind, inlines_are_empty};
+use crate::model::{Asset, Block, Document, Inline, List, MarkerKind, Note, TableKind, inlines_are_empty};
 use anchors::{AnchorMap, resolve_anchors};
 use escape::{EscapeOpts, InlineContext, backtick_fence, escape_text};
 use inline::render_inlines;
@@ -32,13 +32,20 @@ pub(crate) fn escape_marker_label(label: &str, ctx: InlineContext) -> String {
 type NoteNumbers = HashMap<String, usize>;
 
 /// Immutable render context threaded through every render function.
-pub(crate) struct Ctx {
+pub(crate) struct Ctx<'a> {
     nums: NoteNumbers,
     anchors: AnchorMap,
+    /// The document's embedded assets, indexed by [`AssetId`], so image
+    /// sources backed by retained bytes can render as base64 data URIs.
+    assets: &'a [Asset],
 }
 
 pub fn document_to_markdown(doc: &Document) -> String {
-    let rc = Ctx { nums: number_notes(doc), anchors: resolve_anchors(doc) };
+    let rc = Ctx {
+        nums: number_notes(doc),
+        anchors: resolve_anchors(doc),
+        assets: &doc.assets,
+    };
     let mut parts: Vec<String> = doc.blocks.iter().filter_map(|b| render_block(b, &rc)).collect();
     let mut rendered_defs: HashSet<usize> = HashSet::new();
     let mut ordered: Vec<(&Note, usize)> =
