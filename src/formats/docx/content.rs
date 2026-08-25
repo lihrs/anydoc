@@ -378,6 +378,20 @@ impl<'a, 'b, 'e> InlineWalker<'a, 'b, 'e> {
         self.pieces.push(Piece::Blocks(blocks));
     }
 
+    /// Emit a decoded formula. A formula that is the entire content of its
+    /// paragraph (nothing before or after it in the run stream) is display
+    /// math on its own line (`Block::Math`); anything else is inline (`Math`).
+    fn push_math(&mut self, tex: String) {
+        if tex.is_empty() {
+            return;
+        }
+        if self.current.is_empty() {
+            self.push_blocks(vec![Block::Math(tex)]);
+        } else {
+            self.push(Inline::Math(tex));
+        }
+    }
+
     fn walk(&mut self, elem: &Element) -> Result<(), ConvertError> {
         for child in elem.child_elems() {
             if child.is(ns::MC, "AlternateContent") {
@@ -585,12 +599,27 @@ impl<'a, 'b, 'e> InlineWalker<'a, 'b, 'e> {
         // object's identity and payload must win over its preview.
         if let Some(ole) = elem.first_descendant(ns::O_VML, "OLEObject") {
             let prog_id = ole.attr(ns::O_VML, "ProgID").unwrap_or("object").to_string();
+            // MathType equations (MathType Equation / Equation Editor) carry a
+            // ProgID like `Equation.DSMT4`; decode the MTEF payload to LaTeX.
+            let is_math = prog_id.contains("Equation.") || prog_id.contains("DSMT");
+            let rel_id = ole.attr_qualified(ns::R, "id");
+            if is_math {
+                if let Some(rel_id) = rel_id
+                    && let Some((_part, bytes)) = self.ctx.rel_part(rel_id)?
+                    && let Some(tex) = crate::shared::math::ole_mtef_to_tex(&bytes)
+                {
+                    self.push_math(tex);
+                    return Ok(());
+                }
+                // MTEF decode failed: fall through to the placeholder so the
+                // document still produces useful content.
+            }
             let alt = if descr.trim().is_empty() {
                 format!("Embedded object: {prog_id}")
             } else {
                 descr.clone()
             };
-            let source = match ole.attr_qualified(ns::R, "id") {
+            let source = match rel_id {
                 Some(rel_id) => match self.ctx.rel_part(rel_id)? {
                     Some((part, bytes)) => Some(ImageSource::Asset(self.ctx.add_asset(
                         "application/vnd.ms-ole-object".into(),
