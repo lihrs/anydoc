@@ -123,7 +123,7 @@ fn render_inlines_mode(inlines: &[Inline], ctx: InlineContext, in_label: bool, r
                 }
             }
             Norm::Link { content, target } => render_link(content, target, ctx, rc, &mut out),
-            Norm::Image { alt, source } => render_image(alt, source, ctx, in_label, &mut out),
+            Norm::Image { alt, source } => render_image(alt, source, ctx, in_label, rc, &mut out),
             Norm::Anchor(id) => {
                 if let Some(html_id) = rc.anchors.html_id(id) {
                     let _ = write!(out, "<a id=\"{html_id}\"></a>");
@@ -184,6 +184,7 @@ fn render_image(
     source: &ImageSource,
     ctx: InlineContext,
     in_label: bool,
+    rc: &Ctx,
     out: &mut String,
 ) {
     match source {
@@ -192,10 +193,35 @@ fn render_image(
                 escape_text(alt.trim(), ctx, EscapeOpts { in_label: true, ..Default::default() });
             let _ = write!(out, "![{}]({})", alt, format_url(url));
         }
-        // Embedded assets render as their alt text: Markdown cannot embed
-        // bytes, and the bytes stay available in `Document::assets`. A
-        // source-less image has only its alt text to offer.
-        ImageSource::Asset(_) | ImageSource::Unavailable => {
+        // Embedded images render as a base64 data URI: Markdown displays an
+        // image only from a destination, so the retained bytes are inlined
+        // and the document stays self-contained. Only image assets qualify —
+        // OLE objects also live in `assets` but render as their alt text.
+        // A missing id or a non-image asset degrades to the alt text.
+        ImageSource::Asset(id) => match rc.assets.get(id.0).filter(|a| a.media_type.starts_with("image/"))
+        {
+            Some(asset) => {
+                let uri = format!(
+                    "data:{};base64,{}",
+                    asset.media_type,
+                    crate::shared::base64::encode(&asset.bytes)
+                );
+                let alt =
+                    escape_text(alt.trim(), ctx, EscapeOpts { in_label: true, ..Default::default() });
+                let _ = write!(out, "![{}]({})", alt, format_url(&uri));
+            }
+            None => {
+                if !alt.trim().is_empty() {
+                    out.push_str(&escape_text(
+                        alt.trim(),
+                        ctx,
+                        EscapeOpts { in_label, ..Default::default() },
+                    ));
+                }
+            }
+        }
+        // A source-less image has only its alt text to offer.
+        ImageSource::Unavailable => {
             if !alt.trim().is_empty() {
                 out.push_str(&escape_text(
                     alt.trim(),
@@ -268,8 +294,13 @@ fn delims_of(run: &Norm, rc: &Ctx) -> Delims {
         Norm::Image { alt, source } => match source {
             ImageSource::External(_) if alt.contains('`') => delims.insert('`'),
             ImageSource::External(_) => {}
-            // Sourceless images degrade to their alt as plain text.
-            ImageSource::Asset(_) | ImageSource::Unavailable => delims.insert_closers(alt),
+            // An embedded image renders as a link, so its alt sits inside a
+            // label: mirror the External arms (a backtick in the alt can
+            // still pair with a code span across the seam).
+            ImageSource::Asset(_) if alt.contains('`') => delims.insert('`'),
+            ImageSource::Asset(_) => {}
+            // A sourceless image degrades to its alt as plain text.
+            ImageSource::Unavailable => delims.insert_closers(alt),
         },
         Norm::NoteRef(_)
         | Norm::Anchor(_)
