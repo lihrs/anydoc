@@ -42,3 +42,8 @@ pub const MAX_RECORD_DEPTH: usize = 64;
 
 /// Maximum total binary records visited in one legacy record stream.
 pub const MAX_RECORDS: u64 = 16_000_000;
+
+/// Maximum retained bytes of a single MathType (MTEF) equation stream.
+/// A formula's `Equation Native` stream is a few hundred bytes; this bound
+/// only prevents a corrupt sector chain from retaining unbounded data.
+pub const MAX_MTEF_STREAM_BYTES: u64 = 1 * 1024 * 1024;
