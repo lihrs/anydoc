@@ -4,6 +4,7 @@
 //! instructions.
 
 pub mod assets;
+pub mod base64;
 pub mod binary;
 pub mod blockstyle;
 pub mod chain;
