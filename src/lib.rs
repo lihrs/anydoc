@@ -31,11 +31,9 @@ pub enum Format {
     Docx,
     /// OpenDocument Text (`.odt`).
     Odt,
-    /// Converted with [pdf-inspector], which emits Markdown directly:
-    /// [`to_document`] is unsupported for PDFs. Scanned/image-only PDFs
-    /// (needing OCR) error as unsupported.
-    ///
-    /// [pdf-inspector]: https://github.com/firecrawl/pdf-inspector
+    /// Portable Document Format. Parsed by the internal PDF engine and rendered
+    /// through the shared document model, so PDFs get heading detection, table
+    /// reconstruction, and embedded images like any other format.
     Pdf,
     /// Binary PowerPoint 97-2003 (`.ppt`, `.pps`, `.pot`).
     Ppt,
@@ -117,19 +115,13 @@ pub fn to_markdown_bytes(
     format: impl Into<Option<Format>>,
 ) -> Result<String, ConvertError> {
     let format = resolve_format(bytes, format.into())?;
-    // PDFs convert to Markdown directly (pdf-inspector) without passing
-    // through the document model.
-    if format == Format::Pdf {
-        return formats::pdf::to_markdown(bytes);
-    }
+    // Every format (PDF included) goes through the document model and the
+    // shared GFM writer, so behavior is consistent across inputs.
     Ok(document_to_markdown(&to_document(bytes, format)?))
 }
 
 /// Parse an in-memory document into the document model. Pass a [`Format`] to
 /// select the parser, or `None` to detect it from the content.
-///
-/// Unsupported for [`Format::Pdf`]: PDF conversion produces Markdown
-/// directly and has no document-model form; use [`to_markdown_bytes`].
 pub fn to_document(
     bytes: &[u8],
     format: impl Into<Option<Format>>,

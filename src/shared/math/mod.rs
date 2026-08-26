@@ -12,6 +12,16 @@ pub use omml::{omath_para_to_tex, omath_to_tex};
 
 use crate::model::Inline;
 
+/// Convert a string of mathematically-typed characters to LaTeX source (no
+/// delimiters), mapping Unicode symbols to their control words (`≤` → `\le`,
+/// `∪` → `\cup`, Greek → their macros) and escaping TeX specials. Shared by
+/// the OMML/MathML/MTEF converters and the PDF math-detection pass.
+pub fn math_text_to_tex(text: &str) -> String {
+    let mut tex = tex::Tex::new();
+    tex.push_math_text(text);
+    tex.finish()
+}
+
 /// The equations of a paragraph that holds nothing else, for formats whose
 /// math paragraphs arrive as inline content: such a paragraph is displayed
 /// math, one block per equation.

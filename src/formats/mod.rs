@@ -29,10 +29,7 @@ pub fn parse(bytes: &[u8], format: Format) -> Result<Document, ConvertError> {
         Format::Doc if bytes.starts_with(b"{\\rtf") => rtf::parse(bytes),
         Format::Doc => doc::parse(bytes),
         Format::Ppt => ppt::parse(bytes),
-        // pdf-inspector produces Markdown directly; there is no document
-        // model for PDFs. `to_markdown_bytes` routes them to `pdf`.
-        Format::Pdf => Err(ConvertError::Unsupported(
-            "PDF converts directly to Markdown; use to_markdown or to_markdown_bytes".to_string(),
-        )),
+        // The PDF engine parses into the document model like every other format.
+        Format::Pdf => pdf::parse(bytes),
     }
 }

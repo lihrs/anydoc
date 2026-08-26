@@ -17,9 +17,9 @@ pub enum Format {
     doc,
     docx,
     odt,
-    /// Converted with pdf-inspector, which emits Markdown directly:
-    /// `toDocument` is unsupported for PDFs. Scanned or image-only PDFs
-    /// (needing OCR) error as unsupported.
+    /// Portable Document Format. Parsed by the internal PDF engine and rendered
+    /// through the shared document model, so PDFs get heading detection, table
+    /// reconstruction, and embedded images like any other format.
     pdf,
     ppt,
     pptx,
@@ -121,9 +121,8 @@ pub fn to_markdown_bytes(
 /// Parse an in-memory document into the document model, which also carries
 /// the embedded assets. Without a format, it is detected from the content.
 ///
-/// Unsupported for `pdf`: PDF conversion produces Markdown directly and has
-/// no document-model form; use `toMarkdownBytes`.
 ///
+/// PDFs are supported: the engine parses them into the same document model.
 /// Rejects with an `Error` carrying a `ConvertErrorCode` on `code`.
 #[napi(ts_return_type = "Promise<Document>")]
 pub fn to_document(bytes: Uint8Array, format: Option<Format>) -> AsyncTask<DocumentTask> {

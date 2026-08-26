@@ -26,3 +26,11 @@ serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
 serde-wasm-bindgen = "0.6"
 wasm-bindgen = "0.2"
+
+# `getrandom` (a transitive dep of the PDF engine's `lopdf` → `rand` tree) needs
+# the `wasm_js` backend to compile for wasm32. Enabling its feature here — together
+# with the `getrandom_backend="wasm_js"` cfg in `.cargo/config.toml` — makes the
+# wasm build succeed. Scoped to wasm32 so native builds are unaffected.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+

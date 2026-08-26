@@ -19,9 +19,9 @@ pub enum Format {
     Doc = "doc",
     Docx = "docx",
     Odt = "odt",
-    /// Converted with pdf-inspector, which emits Markdown directly:
-    /// `toDocument` is unsupported for PDFs. Scanned or image-only PDFs
-    /// (needing OCR) error as unsupported.
+    /// Portable Document Format. Parsed by the internal PDF engine and rendered
+    /// through the shared document model, so PDFs get heading detection, table
+    /// reconstruction, and embedded images like any other format.
     Pdf = "pdf",
     Ppt = "ppt",
     Pptx = "pptx",
@@ -106,8 +106,7 @@ pub fn to_markdown_bytes(bytes: &[u8], format: Option<Format>) -> Result<String,
 /// Parse an in-memory document into the document model, which also carries
 /// the embedded assets. Without a format, it is detected from the content.
 ///
-/// Unsupported for `pdf`: PDF conversion produces Markdown directly and has
-/// no document-model form; use `toMarkdownBytes`.
+/// PDFs are supported: the engine parses them into the same document model.
 ///
 /// Throws an `Error` carrying a `ConvertErrorCode` on `code`.
 #[wasm_bindgen(js_name = toDocument, unchecked_return_type = "Document")]
