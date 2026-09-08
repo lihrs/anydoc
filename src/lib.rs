@@ -31,9 +31,12 @@ pub enum Format {
     Docx,
     /// OpenDocument Text (`.odt`).
     Odt,
-    /// Portable Document Format. Parsed by the internal PDF engine and rendered
-    /// through the shared document model, so PDFs get heading detection, table
-    /// reconstruction, and embedded images like any other format.
+    /// Converted with [pdf-inspector], which emits Markdown directly:
+    /// [`to_document`] is unsupported for PDFs. Scanned or image-only pages
+    /// need OCR, which anydoc does not do: the document errors with
+    /// [`ConvertError::NeedsOcr`] naming them.
+    ///
+    /// [pdf-inspector]: https://github.com/firecrawl/pdf-inspector
     Pdf,
     /// Binary PowerPoint 97-2003 (`.ppt`, `.pps`, `.pot`).
     Ppt,
