@@ -76,7 +76,7 @@ This produces the npm package in `wasm/pkg/`: the module, the JS glue, and TypeS
 `www/` holds the static demo site, which imports the module from `www/pkg/`. Build into that directory, then serve `www/`:
 
 ```bash
-wasm-pack build wasm --release --target web --no-pack --out-dir www/pkg
+wasm-pack build wasm --release --target web --no-pack --out-dir www/pkg --out-name anydoc_wasm
 python -m http.server -d wasm/www
 ```
 
