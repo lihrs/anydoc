@@ -293,3 +293,5 @@ Releases are tagged `v<version>`, which publishes the crate, the npm package, an
 ## License
 
 [MIT](LICENSE)
+
+https://github.com/casperkwok/pdfmuse
